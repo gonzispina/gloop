@@ -1,12 +1,14 @@
-package compiler
+package parser
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 type tokenType uint8
 
 const (
-	DoubleQuote tokenType = iota
-	Plus
+	Plus tokenType = iota
 	Star
 	Equal
 	Lesser
@@ -19,8 +21,7 @@ const (
 	LeftBracket
 	RightSquareBracket
 	LeftSquareBracket
-	Colon
-	Semicolon
+	Comma
 
 	Define
 	Procedure
@@ -32,23 +33,19 @@ const (
 	Loop
 	Abort
 	Times
-	Block
 	Begin
 	End
 	Quit
 
 	Cell
 	Output
-	Yes
-	No
 
 	Literal
 )
 
 type Token struct {
-	tt     tokenType
-	lexeme string
-	value  interface{}
+	tt    tokenType
+	value interface{}
 }
 
 func literal(value interface{}) Token {
@@ -60,7 +57,7 @@ func token(tt tokenType) Token {
 }
 
 func reserved(s string) (Token, error) {
-	switch s {
+	switch strings.ToLower(s) {
 	case "define":
 		return token(Define), nil
 	case "procedure":
@@ -81,8 +78,6 @@ func reserved(s string) (Token, error) {
 		return token(Abort), nil
 	case "times":
 		return token(Times), nil
-	case "block":
-		return token(Block), nil
 	case "begin":
 		return token(Begin), nil
 	case "end":
