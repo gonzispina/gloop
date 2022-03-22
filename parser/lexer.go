@@ -113,6 +113,9 @@ func Lexer(text string) ([]Token, error) {
 				}
 				t, err := reserved(lexeme)
 				if err != nil {
+					if current() == "?" {
+						lexeme += next()
+					}
 					t = literal(lexeme)
 				}
 				res = append(res, t)

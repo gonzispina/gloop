@@ -36,8 +36,7 @@ const (
 	Begin
 	End
 	Quit
-
-	Cell
+	
 	Output
 
 	Literal
@@ -84,8 +83,6 @@ func reserved(s string) (Token, error) {
 		return token(End), nil
 	case "quit":
 		return token(Quit), nil
-	case "cell":
-		return token(Cell), nil
 	case "output":
 		return token(Output), nil
 	case "yes":
