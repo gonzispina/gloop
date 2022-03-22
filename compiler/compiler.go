@@ -5,26 +5,26 @@ import (
 	"reflect"
 )
 
-func NewParser(tokens []Token) *Parser {
-	return &Parser{
+func NewCompiler(tokens []Token) *Compiler {
+	return &Compiler{
 		chunk:   vm.NewChunk(),
 		tokens:  tokens,
 		counter: 0,
 	}
 }
 
-type Parser struct {
+type Compiler struct {
 	chunk   vm.Chunk
 	tokens  []Token
 	counter int
 	vars    map[string]*variable
 }
 
-func (p *Parser) isAtEnd() bool {
+func (p *Compiler) isAtEnd() bool {
 	return p.counter == len(p.tokens) || p.tokens[p.counter].tt == Eof
 }
 
-func (p *Parser) advance() Token {
+func (p *Compiler) advance() Token {
 	if p.isAtEnd() {
 		return Token{tt: Eof}
 	}
@@ -32,14 +32,14 @@ func (p *Parser) advance() Token {
 	return p.tokens[p.counter-1]
 }
 
-func (p *Parser) peek() Token {
+func (p *Compiler) peek() Token {
 	if p.isAtEnd() {
 		return Token{tt: Eof}
 	}
 	return p.tokens[p.counter]
 }
 
-func (p *Parser) match(tt tokenType) bool {
+func (p *Compiler) match(tt tokenType) bool {
 	t := p.peek()
 	if t.tt == tt {
 		p.counter++
@@ -49,15 +49,15 @@ func (p *Parser) match(tt tokenType) bool {
 	return false
 }
 
-func (p *Parser) expression() (interface{}, error) {
+func (p *Compiler) expression() (interface{}, error) {
 	return nil, nil
 }
 
-func (p *Parser) procedureCall() error {
+func (p *Compiler) procedureCall() error {
 	return nil
 }
 
-func (p *Parser) declareVariable(name string) *variable {
+func (p *Compiler) declareVariable(name string) *variable {
 	slot := p.chunk.AddLocal()
 	p.vars[name] = &variable{
 		name:        name,
@@ -68,7 +68,7 @@ func (p *Parser) declareVariable(name string) *variable {
 	return p.vars[name]
 }
 
-func (p *Parser) varAssignment() error {
+func (p *Compiler) varAssignment() error {
 	t := p.peek()
 	if t.tt == Eof {
 		return unexpectedEndOfFileErr(p.peek())
@@ -108,7 +108,7 @@ func (p *Parser) varAssignment() error {
 	return nil
 }
 
-func (p *Parser) statement() error {
+func (p *Compiler) statement() error {
 	if p.match(If) {
 		// return p.ifStatement()
 	} else if p.match(Loop) {
@@ -120,7 +120,7 @@ func (p *Parser) statement() error {
 	return unexpectedTokenErr(p.peek())
 }
 
-func (p *Parser) synchronize() {
+func (p *Compiler) synchronize() {
 	for {
 		t := p.advance()
 		if t.tt == Eof {
@@ -137,7 +137,7 @@ func (p *Parser) synchronize() {
 	}
 }
 
-func (p *Parser) Parse() (vm.Chunk, []error) {
+func (p *Compiler) Parse() (vm.Chunk, []error) {
 	var errs []error
 	p.counter = 0
 	for p.counter <= len(p.tokens) {
