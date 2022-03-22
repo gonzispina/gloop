@@ -1,4 +1,4 @@
-package parser
+package compiler
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -24,32 +24,32 @@ func TestLexer(t *testing.T) {
 		expected := []Token{
 			{tt: Define},
 			{tt: Procedure},
-			{tt: Literal, value: "MINUS"},
+			{tt: Identifier, value: "MINUS"},
 			{tt: LeftSquareBracket},
-			{tt: Literal, value: "M"},
+			{tt: Identifier, value: "M"},
 			{tt: Comma},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: RightSquareBracket},
 			{tt: If},
-			{tt: Literal, value: "M"},
+			{tt: Identifier, value: "M"},
 			{tt: Lesser},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Then},
 			{tt: Quit},
 			{tt: Procedure},
 			{tt: End},
 			{tt: If},
 			{tt: Loop},
-			{tt: Literal, value: "M"},
+			{tt: Identifier, value: "M"},
 			{tt: Plus},
-			{tt: Literal, value: int64(1)},
+			{tt: Constant, value: int64(1)},
 			{tt: Times},
 			{tt: If},
 			{tt: Output},
 			{tt: Plus},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Equal},
-			{tt: Literal, value: "M"},
+			{tt: Identifier, value: "M"},
 			{tt: Then},
 			{tt: Abort},
 			{tt: Loop},
@@ -59,16 +59,19 @@ func TestLexer(t *testing.T) {
 			{tt: LeftArrow},
 			{tt: Output},
 			{tt: Plus},
-			{tt: Literal, value: int64(1)},
+			{tt: Constant, value: int64(1)},
 			{tt: End},
 			{tt: Loop},
 			{tt: End},
 			{tt: Procedure},
+			{tt: Eof},
 		}
 
 		res, err := Lexer(text)
 		assert.Nil(t, err)
-		assert.Equal(t, expected, res)
+		for i, tkn := range res {
+			assert.Equal(t, expected[i].tt, tkn.tt)
+		}
 	})
 
 	t.Run("It returns the correct tokens for test procedure", func(t *testing.T) {
@@ -95,57 +98,57 @@ func TestLexer(t *testing.T) {
 		expected := []Token{
 			{tt: Define},
 			{tt: Procedure},
-			{tt: Literal, value: "ISEVEN?"},
+			{tt: Identifier, value: "ISEVEN?"},
 			{tt: LeftSquareBracket},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: RightSquareBracket},
 
 			{tt: If},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Lesser},
-			{tt: Literal, value: int64(2)},
+			{tt: Constant, value: int64(2)},
 			{tt: Then},
 			{tt: Output},
 			{tt: LeftArrow},
-			{tt: Literal, value: true},
+			{tt: Constant, value: true},
 			{tt: Quit},
 			{tt: Procedure},
 			{tt: End},
 			{tt: If},
 
 			{tt: Loop},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Times},
 
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: LeftArrow},
-			{tt: Literal, value: "MINUS"},
+			{tt: Identifier, value: "MINUS"},
 			{tt: LeftSquareBracket},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Comma},
-			{tt: Literal, value: int64(2)},
+			{tt: Constant, value: int64(2)},
 			{tt: RightSquareBracket},
 
 			{tt: If},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Equal},
-			{tt: Literal, value: int64(1)},
+			{tt: Constant, value: int64(1)},
 			{tt: Then},
 			{tt: Output},
 			{tt: LeftArrow},
-			{tt: Literal, value: false},
+			{tt: Constant, value: false},
 			{tt: Quit},
 			{tt: Procedure},
 
 			{tt: Else},
 			{tt: If},
-			{tt: Literal, value: "N"},
+			{tt: Identifier, value: "N"},
 			{tt: Equal},
-			{tt: Literal, value: int64(0)},
+			{tt: Constant, value: int64(0)},
 			{tt: Then},
 			{tt: Output},
 			{tt: LeftArrow},
-			{tt: Literal, value: true},
+			{tt: Constant, value: true},
 			{tt: Quit},
 			{tt: Procedure},
 			{tt: End},
@@ -155,10 +158,13 @@ func TestLexer(t *testing.T) {
 			{tt: Loop},
 			{tt: End},
 			{tt: Procedure},
+			{tt: Eof},
 		}
 
 		res, err := Lexer(text)
 		assert.Nil(t, err)
-		assert.Equal(t, expected, res)
+		for i, tkn := range res {
+			assert.Equal(t, expected[i].tt, tkn.tt)
+		}
 	})
 }

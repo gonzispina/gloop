@@ -1,4 +1,4 @@
-package parser
+package compiler
 
 import (
 	"errors"
@@ -17,7 +17,8 @@ func isLetter(s string) bool {
 
 func Lexer(text string) ([]Token, error) {
 	var res []Token
-	var i int
+	var i, line int
+
 	text = strings.Trim(text, " ")
 	text = strings.Trim(text, "\t")
 	text = strings.Trim(text, "\n")
@@ -35,6 +36,10 @@ func Lexer(text string) ([]Token, error) {
 		i++
 
 		for !isAtEnd() && (l == " " || l == "\n" || l == "\t") {
+			if l == "\n" {
+				line++
+			}
+
 			l = current()
 			i++
 		}
@@ -45,57 +50,54 @@ func Lexer(text string) ([]Token, error) {
 		letter := next()
 		switch letter {
 		case "\"":
-			letter = next()
+			lexeme := next()
 			for !isAtEnd() && current() != "\"" {
-				letter += next()
+				lexeme += next()
 			}
 			if !isAtEnd() {
 				next()
 			}
-			res = append(res, literal(letter))
+			res = append(res, identifier(letter, lexeme, line, i))
 			break
 		case "+":
-			res = append(res, token(Plus))
+			res = append(res, token(Plus, letter, line, i))
 			break
 		case "*":
-			res = append(res, token(Star))
+			res = append(res, token(Star, letter, line, i))
 			break
 		case "=":
-			res = append(res, token(Equal))
+			res = append(res, token(Equal, letter, line, i))
 			break
 		case "<":
 			if !isAtEnd() && current() == "=" {
-				res = append(res, token(LesserEqual))
-				next()
+				res = append(res, token(LesserEqual, letter+next(), line, i))
 			} else if current() == "-" {
-				res = append(res, token(LeftArrow))
-				next()
+				res = append(res, token(LeftArrow, letter+next(), line, i))
 			} else {
-				res = append(res, token(Lesser))
+				res = append(res, token(Lesser, letter, line, i))
 			}
 			break
 		case ">":
 			if current() == "=" {
-				res = append(res, token(GreaterEqual))
-				next()
+				res = append(res, token(GreaterEqual, letter+next(), line, i))
 			} else {
-				res = append(res, token(Greater))
+				res = append(res, token(Greater, letter, line, i))
 			}
 			break
 		case "(":
-			res = append(res, token(LeftBracket))
+			res = append(res, token(LeftBracket, letter, line, i))
 			break
 		case ")":
-			res = append(res, token(RightBracket))
+			res = append(res, token(RightBracket, letter, line, i))
 			break
 		case "[":
-			res = append(res, token(LeftSquareBracket))
+			res = append(res, token(LeftSquareBracket, letter, line, i))
 			break
 		case "]":
-			res = append(res, token(RightSquareBracket))
+			res = append(res, token(RightSquareBracket, letter, line, i))
 			break
 		case ",":
-			res = append(res, token(Comma))
+			res = append(res, token(Comma, letter, line, i))
 			break
 		default:
 			if isNumber(letter) {
@@ -104,26 +106,27 @@ func Lexer(text string) ([]Token, error) {
 					lexeme += next()
 				}
 				value, _ := strconv.ParseInt(lexeme, 10, 64)
-				res = append(res, literal(value))
+				res = append(res, constant(lexeme, value, line, i))
 				break
 			} else if isLetter(letter) {
 				lexeme := letter
 				for !isAtEnd() && (isLetter(current()) || isNumber(current())) {
 					lexeme += next()
 				}
-				t, err := reserved(lexeme)
+				t, err := reserved(lexeme, line, i)
 				if err != nil {
 					if current() == "?" {
 						lexeme += next()
 					}
-					t = literal(lexeme)
+					t = identifier(lexeme, lexeme, line, i)
 				}
 				res = append(res, t)
 			} else {
-				return nil, errors.New(fmt.Sprintf("unexpected token %s", current()))
+				return nil, errors.New(fmt.Sprintf("Line %v Column %v: unexpected token %s", line, i, current()))
 			}
 		}
 	}
 
+	res = append(res, Token{tt: Eof})
 	return res, nil
 }
