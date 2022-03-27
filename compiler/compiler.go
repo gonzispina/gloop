@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"github.com/gonzispina/gloop/vm"
+	"path"
 	"reflect"
 )
 
@@ -20,71 +21,81 @@ type Compiler struct {
 	vars    map[string]*variable
 }
 
-func (p *Compiler) isAtEnd() bool {
-	return p.counter == len(p.tokens) || p.tokens[p.counter].tt == Eof
+func (c *Compiler) isAtEnd() bool {
+	return c.counter == len(c.tokens) || c.tokens[c.counter].tt == Eof
 }
 
-func (p *Compiler) advance() Token {
-	if p.isAtEnd() {
+func (c *Compiler) advance() Token {
+	if c.isAtEnd() {
 		return Token{tt: Eof}
 	}
-	p.counter++
-	return p.tokens[p.counter-1]
+	c.counter++
+	return c.tokens[c.counter-1]
 }
 
-func (p *Compiler) peek() Token {
-	if p.isAtEnd() {
+func (c *Compiler) peek() Token {
+	if c.isAtEnd() {
 		return Token{tt: Eof}
 	}
-	return p.tokens[p.counter]
+	return c.tokens[c.counter]
 }
 
-func (p *Compiler) match(tt tokenType) bool {
-	t := p.peek()
+func (c *Compiler) match(tt tokenType) bool {
+	t := c.peek()
 	if t.tt == tt {
-		p.counter++
+		c.counter++
 		return true
 	}
 
 	return false
 }
 
-func (p *Compiler) expression() (interface{}, error) {
+func (c *Compiler) expression() (interface{}, error) {
+	if c.peek().tt == Identifier {
+
+	}
+
+	switch c.peek().tt {
+	case Equal:
+	case Greater:
+	case Or:
+	case
+
+	}
+}
+
+func (c *Compiler) procedureCall() (interface{}, error) {
 	return nil, nil
 }
 
-func (p *Compiler) procedureCall() error {
-	return nil
-}
-
-func (p *Compiler) declareVariable(name string) *variable {
-	slot := p.chunk.AddLocal()
-	p.vars[name] = &variable{
+func (c *Compiler) declareVariable(name string) *variable {
+	slot := c.chunk.AddLocal()
+	c.vars[name] = &variable{
 		name:        name,
 		vt:          0,
 		initialized: false,
 		slot:        slot,
 	}
-	return p.vars[name]
+	return c.vars[name]
 }
 
-func (p *Compiler) varAssignment() error {
-	t := p.peek()
+func (c *Compiler) varAssignment() error {
+	t := c.peek()
 	if t.tt == Eof {
-		return unexpectedEndOfFileErr(p.peek())
+		return unexpectedEndOfFileErr(c.peek())
 	}
 
 	name := t.value.(string)
-	v, ok := p.vars[name]
+	v, ok := c.vars[name]
 	if !ok {
-		v = p.declareVariable(name)
+		v = c.declareVariable(name)
 	}
 
-	if !p.match(LeftArrow) {
-		return expectedAssignmentOperatorErr(p.peek())
+	if !c.match(LeftArrow) {
+		return expectedAssignmentOperatorErr(c.peek())
 	}
 
-	value, err := p.expression()
+	value, err := c.expression()
 	if err != nil {
 		return err
 	}
@@ -92,37 +103,37 @@ func (p *Compiler) varAssignment() error {
 	switch reflect.ValueOf(value).Kind() {
 	case reflect.Bool:
 		if v.initialized && v.vt != boolean {
-			return assignErr(p.peek(), v.vt, boolean)
+			return assignErr(c.peek(), v.vt, boolean)
 		}
 		v.initialized = true
 		v.vt = boolean
 	case reflect.Int64:
 		if v.initialized && v.vt != number {
-			return assignErr(p.peek(), v.vt, number)
+			return assignErr(c.peek(), v.vt, number)
 		}
 		v.initialized = true
 		v.vt = number
 	}
 
-	p.chunk.Write(vm.OpSet.Byte(), t.line, v.slot)
+	c.chunk.Write(vm.OpSet.Byte(), t.line, v.slot)
 	return nil
 }
 
-func (p *Compiler) statement() error {
-	if p.match(If) {
-		// return p.ifStatement()
-	} else if p.match(Loop) {
-		// return p.loopStatement()
-	} else if p.match(Identifier) {
-		return p.varAssignment()
+func (c *Compiler) statement() error {
+	if c.match(If) {
+		// return c.ifStatement()
+	} else if c.match(Loop) {
+		// return c.loopStatement()
+	} else if c.match(Identifier) {
+		return c.varAssignment()
 	}
 
-	return unexpectedTokenErr(p.peek())
+	return unexpectedTokenErr(c.peek())
 }
 
-func (p *Compiler) synchronize() {
+func (c *Compiler) synchronize() {
 	for {
-		t := p.advance()
+		t := c.advance()
 		if t.tt == Eof {
 			break
 		}
@@ -131,20 +142,20 @@ func (p *Compiler) synchronize() {
 			continue
 		}
 
-		if p.match(Procedure) || p.match(Loop) || p.match(If) {
+		if c.match(Procedure) || c.match(Loop) || c.match(If) {
 			break
 		}
 	}
 }
 
-func (p *Compiler) Parse() (vm.Chunk, []error) {
+func (c *Compiler) Parse() (vm.Chunk, []error) {
 	var errs []error
-	p.counter = 0
-	for p.counter <= len(p.tokens) {
-		err := p.statement()
+	c.counter = 0
+	for c.counter <= len(c.tokens) {
+		err := c.statement()
 		if err != nil {
 			errs = append(errs, err)
-			p.synchronize()
+			c.synchronize()
 		}
 	}
 
@@ -152,5 +163,5 @@ func (p *Compiler) Parse() (vm.Chunk, []error) {
 		return vm.Chunk{}, errs
 	}
 
-	return p.chunk, nil
+	return c.chunk, nil
 }
