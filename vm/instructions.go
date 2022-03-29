@@ -12,6 +12,7 @@ const (
 	OpEqual
 	OpGreater
 	OpLesser
+	OpNot
 
 	OpPush
 	OpPop

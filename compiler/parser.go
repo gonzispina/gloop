@@ -85,10 +85,10 @@ func Lexer(text string) ([]Token, error) {
 			}
 			break
 		case "(":
-			res = append(res, token(LeftBracket, letter, line, i))
+			res = append(res, token(LeftParen, letter, line, i))
 			break
 		case ")":
-			res = append(res, token(RightBracket, letter, line, i))
+			res = append(res, token(RightParen, letter, line, i))
 			break
 		case "[":
 			res = append(res, token(LeftSquareBracket, letter, line, i))

@@ -1,5 +1,7 @@
 package vm
 
+import "errors"
+
 func NewChunk() Chunk {
 	return Chunk{ip: 0, instructions: []byte{}}
 }
@@ -19,7 +21,30 @@ func (c Chunk) AddLocal() byte {
 	return byte(c.localCount)
 }
 
-func (c Chunk) Write(b byte, line int, more ...byte) {
+func (c Chunk) Write(index int, b byte) error {
+	if index >= len(c.instructions) {
+		panic("invalid chunk index")
+	}
+
+	c.instructions[index] = b
+	return nil
+}
+
+func (c Chunk) EmitJump(code OpCode, line int) int {
+	return c.Append(code.Byte(), line, 0xff, 0xff)
+}
+
+func (c Chunk) PatchJump(offset int) error {
+	jump := len(c.instructions) - 2 - offset
+	if jump > 256 {
+		return errors.New("block is too large")
+	}
+
+	c.instructions[offset] = byte(jump >> 8 & 0xff)
+	c.instructions[offset+1] = byte(jump & 0xff)
+}
+
+func (c Chunk) Append(b byte, line int, more ...byte) int {
 	c.instructions = append(c.instructions, b)
 	c.line = append(c.line, line)
 
@@ -29,6 +54,8 @@ func (c Chunk) Write(b byte, line int, more ...byte) {
 			c.line = append(c.line, line)
 		}
 	}
+
+	return len(c.instructions) - 1
 }
 
 func (c Chunk) Read() byte {

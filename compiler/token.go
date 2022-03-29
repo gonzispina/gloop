@@ -15,12 +15,13 @@ const (
 	LesserEqual
 	Greater
 	GreaterEqual
+	Not
 
 	LeftArrow
-	RightBracket
-	LeftBracket
-	RightSquareBracket
+	LeftParen
+	RightParen
 	LeftSquareBracket
+	RightSquareBracket
 	Comma
 
 	Define
@@ -77,6 +78,8 @@ func reserved(s string, line, column int) (Token, error) {
 		return token(Then, strings.ToUpper(s), line, column), nil
 	case "else":
 		return token(Else, strings.ToUpper(s), line, column), nil
+	case "not":
+		return token(Not, strings.ToUpper(s), line, column), nil
 	case "and":
 		return token(And, strings.ToUpper(s), line, column), nil
 	case "or":

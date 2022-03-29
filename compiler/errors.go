@@ -36,3 +36,19 @@ func unexpectedTokenErr(t Token) error {
 		t.lexeme,
 	))
 }
+
+func expectedExpressionErr(t Token) error {
+	return compileErr(t, "expected expression")
+}
+
+func expectedRightParenthesisErr(t Token) error {
+	return compileErr(t, "expected closing parenthesis")
+}
+
+func expectedThenErr(t Token) error {
+	return compileErr(t, "expected 'then' after expression")
+}
+
+func blockIsTooLargeErr(t Token) error {
+	return compileErr(t, "block is too large")
+}

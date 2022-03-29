@@ -2,8 +2,7 @@ package compiler
 
 import (
 	"github.com/gonzispina/gloop/vm"
-	"path"
-	"reflect"
+	"time"
 )
 
 func NewCompiler(tokens []Token) *Compiler {
@@ -46,22 +45,96 @@ func (c *Compiler) match(tt tokenType) bool {
 		c.counter++
 		return true
 	}
-
 	return false
 }
 
-func (c *Compiler) expression() (interface{}, error) {
-	if c.peek().tt == Identifier {
-
+func (c *Compiler) parsePrecedence(previous Token, precedence Precedence) error {
+	current := c.advance()
+	prefixRule := getRule(c, previous.tt).prefix
+	if prefixRule == nil {
+		return expectedExpressionErr(previous)
 	}
 
-	switch c.peek().tt {
+	err := prefixRule()
+	if err != nil {
+		return err
+	}
+
+	for rule := getRule(c, current.tt); rule.precedence > precedence; {
+		current = c.advance()
+		err := rule.infix()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Compiler) unary() error {
+	t := c.peek()
+	err := c.parsePrecedence(t, precedenceUnary)
+	if err != nil {
+		return err
+	}
+
+	c.chunk.Append(vm.OpNot.Byte(), t.line)
+	return nil
+}
+
+func (c *Compiler) binary() error {
+	t := c.peek()
+	rule := getRule(c, t.tt)
+	err := c.parsePrecedence(t, rule.precedence+1)
+	if err != nil {
+		return err
+	}
+
+	switch t.tt {
+	case Plus:
+		c.chunk.Append(vm.OpAdd.Byte(), t.line)
+		break
+	case Star:
+		c.chunk.Append(vm.OpMultiply.Byte(), t.line)
+		break
 	case Equal:
+		c.chunk.Append(vm.OpEqual.Byte(), t.line)
+		break
 	case Greater:
-	case Or:
-	case
-
+		c.chunk.Append(vm.OpGreater.Byte(), t.line)
+		break
+	case Lesser:
+		c.chunk.Append(vm.OpLesser.Byte(), t.line)
+		break
+	case GreaterEqual:
+		c.chunk.Append(vm.OpNot.Byte(), t.line)
+		c.chunk.Append(vm.OpLesser.Byte(), t.line)
+		break
+	case LesserEqual:
+		c.chunk.Append(vm.OpNot.Byte(), t.line)
+		c.chunk.Append(vm.OpGreater.Byte(), t.line)
+		break
 	}
+
+	return nil
+}
+
+func (c *Compiler) expression() error {
+	return c.parsePrecedence(c.peek(), precedenceAssigment)
+}
+
+func (c *Compiler) grouping() error {
+	t := c.advance()
+	if err := c.expression(); err != nil {
+		return err
+	}
+
+	t = c.advance()
+	if t.tt != RightParen {
+		return expectedRightParenthesisErr(t)
+	}
+
+	return nil
 }
 
 func (c *Compiler) procedureCall() (interface{}, error) {
@@ -80,10 +153,7 @@ func (c *Compiler) declareVariable(name string) *variable {
 }
 
 func (c *Compiler) varAssignment() error {
-	t := c.peek()
-	if t.tt == Eof {
-		return unexpectedEndOfFileErr(c.peek())
-	}
+	t := c.advance()
 
 	name := t.value.(string)
 	v, ok := c.vars[name]
@@ -95,36 +165,64 @@ func (c *Compiler) varAssignment() error {
 		return expectedAssignmentOperatorErr(c.peek())
 	}
 
-	value, err := c.expression()
+	err := c.expression()
 	if err != nil {
 		return err
 	}
 
-	switch reflect.ValueOf(value).Kind() {
-	case reflect.Bool:
-		if v.initialized && v.vt != boolean {
-			return assignErr(c.peek(), v.vt, boolean)
+	/*
+		switch reflect.ValueOf(value).Kind() {
+		case reflect.Bool:
+			if v.initialized && v.vt != boolean {
+				return assignErr(c.peek(), v.vt, boolean)
+			}
+			v.initialized = true
+			v.vt = boolean
+		case reflect.Int64:
+			if v.initialized && v.vt != number {
+				return assignErr(c.peek(), v.vt, number)
+			}
+			v.initialized = true
+			v.vt = number
 		}
-		v.initialized = true
-		v.vt = boolean
-	case reflect.Int64:
-		if v.initialized && v.vt != number {
-			return assignErr(c.peek(), v.vt, number)
-		}
-		v.initialized = true
-		v.vt = number
+	*/
+
+	c.chunk.Append(vm.OpSet.Byte(), t.line, v.slot)
+	return nil
+}
+
+func (c *Compiler) ifStatement() error {
+	if err := c.expression(); err != nil {
+		return err
 	}
 
-	c.chunk.Write(vm.OpSet.Byte(), t.line, v.slot)
-	return nil
+	if !c.match(Then) {
+		return expectedThenErr(c.peek())
+	}
+
+	thenJumpOffset := c.chunk.EmitJump(vm.OpJumpIf, c.peek().line)
+	if err := c.statement(); err != nil {
+		return err
+	}
+
+	if c.match(Else) {
+
+	}
+
+	if err := c.chunk.PatchJump(thenJumpOffset); err != nil {
+		return blockIsTooLargeErr(c.peek())
+	}
+
+	for c.peek().tt != End
+
 }
 
 func (c *Compiler) statement() error {
 	if c.match(If) {
-		// return c.ifStatement()
+		return c.ifStatement()
 	} else if c.match(Loop) {
 		// return c.loopStatement()
-	} else if c.match(Identifier) {
+	} else if c.peek().tt == Identifier {
 		return c.varAssignment()
 	}
 
