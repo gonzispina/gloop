@@ -113,6 +113,56 @@ func Lexer(text string) ([]Token, error) {
 				for !isAtEnd() && (isLetter(current()) || isNumber(current())) {
 					lexeme += next()
 				}
+
+				if strings.ToLower(lexeme) == "end" {
+					lexeme += next()
+					for !isAtEnd() && isLetter(current()) {
+						lexeme += next()
+					}
+
+					switch strings.ToLower(lexeme) {
+					case "endif":
+					case "endloop":
+					case "endprocedure":
+						break
+					default:
+						return nil, errors.New(fmt.Sprintf("Line %v Column %v: unexpected token %s. Expected 'end procedure', 'end if' or 'end loop' statement", line, i, current()))
+					}
+				}
+
+				if strings.ToLower(lexeme) == "define" {
+					lexeme += next()
+					for !isAtEnd() && isLetter(current()) {
+						lexeme += next()
+					}
+
+					if strings.ToLower(lexeme) != "defineprocedure" {
+						return nil, errors.New(fmt.Sprintf("Line %v Column %v: unexpected token %s. Expected 'define procedure' statement", line, i, current()))
+					}
+				}
+
+				if strings.ToLower(lexeme) == "quit" {
+					lexeme += next()
+					for !isAtEnd() && isLetter(current()) {
+						lexeme += next()
+					}
+
+					if strings.ToLower(lexeme) != "quitprocedure" {
+						return nil, errors.New(fmt.Sprintf("Line %v Column %v: unexpected token %s. Expected 'quit procedure' statement", line, i, current()))
+					}
+				}
+
+				if strings.ToLower(lexeme) == "abort" {
+					lexeme += next()
+					for !isAtEnd() && (isLetter(current()) || isNumber(current())) {
+						lexeme += next()
+					}
+
+					if strings.ToLower(lexeme) != "abortloop" {
+						return nil, errors.New(fmt.Sprintf("Line %v Column %v: unexpected token %s. Expected 'abort loop' statement", line, i, current()))
+					}
+				}
+
 				t, err := reserved(lexeme, line, i)
 				if err != nil {
 					if current() == "?" {

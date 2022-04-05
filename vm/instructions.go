@@ -17,7 +17,7 @@ const (
 	OpPush
 	OpPop
 	OpJump
-	OpJumpIf
+	OpJumpIfFalse
 
 	OpSet
 	OpGet

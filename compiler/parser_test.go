@@ -22,8 +22,7 @@ func TestLexer(t *testing.T) {
 		`
 
 		expected := []Token{
-			{tt: Define},
-			{tt: Procedure},
+			{tt: DefineProcedure},
 			{tt: Identifier, value: "MINUS"},
 			{tt: LeftSquareBracket},
 			{tt: Identifier, value: "M"},
@@ -35,10 +34,8 @@ func TestLexer(t *testing.T) {
 			{tt: Lesser},
 			{tt: Identifier, value: "N"},
 			{tt: Then},
-			{tt: Quit},
-			{tt: Procedure},
-			{tt: End},
-			{tt: If},
+			{tt: QuitProcedure},
+			{tt: EndIf},
 			{tt: Loop},
 			{tt: Identifier, value: "M"},
 			{tt: Plus},
@@ -51,19 +48,15 @@ func TestLexer(t *testing.T) {
 			{tt: Equal},
 			{tt: Identifier, value: "M"},
 			{tt: Then},
-			{tt: Abort},
-			{tt: Loop},
-			{tt: End},
-			{tt: If},
+			{tt: AbortLoop},
+			{tt: EndIf},
 			{tt: Output},
 			{tt: LeftArrow},
 			{tt: Output},
 			{tt: Plus},
 			{tt: Constant, value: int64(1)},
-			{tt: End},
-			{tt: Loop},
-			{tt: End},
-			{tt: Procedure},
+			{tt: EndLoop},
+			{tt: EndProcedure},
 			{tt: Eof},
 		}
 
@@ -96,8 +89,7 @@ func TestLexer(t *testing.T) {
 		`
 
 		expected := []Token{
-			{tt: Define},
-			{tt: Procedure},
+			{tt: DefineProcedure},
 			{tt: Identifier, value: "ISEVEN?"},
 			{tt: LeftSquareBracket},
 			{tt: Identifier, value: "N"},
@@ -111,10 +103,8 @@ func TestLexer(t *testing.T) {
 			{tt: Output},
 			{tt: LeftArrow},
 			{tt: Constant, value: true},
-			{tt: Quit},
-			{tt: Procedure},
-			{tt: End},
-			{tt: If},
+			{tt: QuitProcedure},
+			{tt: EndIf},
 
 			{tt: Loop},
 			{tt: Identifier, value: "N"},
@@ -137,8 +127,7 @@ func TestLexer(t *testing.T) {
 			{tt: Output},
 			{tt: LeftArrow},
 			{tt: Constant, value: false},
-			{tt: Quit},
-			{tt: Procedure},
+			{tt: QuitProcedure},
 
 			{tt: Else},
 			{tt: If},
@@ -149,15 +138,11 @@ func TestLexer(t *testing.T) {
 			{tt: Output},
 			{tt: LeftArrow},
 			{tt: Constant, value: true},
-			{tt: Quit},
-			{tt: Procedure},
-			{tt: End},
-			{tt: If},
+			{tt: QuitProcedure},
+			{tt: EndIf},
 
-			{tt: End},
-			{tt: Loop},
-			{tt: End},
-			{tt: Procedure},
+			{tt: EndLoop},
+			{tt: EndProcedure},
 			{tt: Eof},
 		}
 

@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"github.com/gonzispina/gloop/vm"
-	"time"
 )
 
 func NewCompiler(tokens []Token) *Compiler {
@@ -200,28 +199,115 @@ func (c *Compiler) ifStatement() error {
 		return expectedThenErr(c.peek())
 	}
 
-	thenJumpOffset := c.chunk.EmitJump(vm.OpJumpIf, c.peek().line)
-	if err := c.statement(); err != nil {
+	thenJumpOffset := c.chunk.EmitJump(vm.OpJumpIfFalse, c.peek().line)
+	for c.peek().tt != EndIf && c.peek().tt != Else {
+		if err := c.statement(); err != nil {
+			return err
+		}
+	}
+
+	for c.match(Else) {
+		if c.match(If) {
+			previousOffset := thenJumpOffset
+			if err := c.expression(); err != nil {
+				return err
+			}
+
+			if !c.match(Then) {
+				return expectedThenErr(c.peek())
+			}
+
+			thenJumpOffset = c.chunk.EmitJump(vm.OpJumpIfFalse, c.peek().line)
+			if err := c.statement(); err != nil {
+				return err
+			}
+
+			c.chunk.Append(vm.OpPop.Byte(), c.peek().line)
+			if err := c.chunk.PatchJump(previousOffset); err != nil {
+				return blockIsTooLargeErr(c.peek())
+			}
+
+			for c.peek().tt != EndIf && c.peek().tt != Else {
+				if err := c.statement(); err != nil {
+					return err
+				}
+			}
+
+			continue
+		}
+
+		c.chunk.Append(vm.OpPop.Byte(), c.peek().line)
+		if err := c.chunk.PatchJump(thenJumpOffset); err != nil {
+			return blockIsTooLargeErr(c.peek())
+		}
+
+		for c.peek().tt != EndIf {
+			if err := c.statement(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if !c.match(EndIf) {
+		return expectedEndIfErr(c.peek())
+	}
+
+	return nil
+}
+
+func (c *Compiler) loopStatement() error {
+	loopStart := c.chunk.InstructionsCount()
+	if err := c.expression(); err != nil {
 		return err
 	}
 
-	if c.match(Else) {
-
+	exitJump := c.chunk.EmitJump(vm.OpJumpIfFalse, c.peek().line)
+	if !c.match(Times) {
+		return expectedTimesErr(c.peek())
 	}
 
-	if err := c.chunk.PatchJump(thenJumpOffset); err != nil {
+	var abortsToPatch []int
+	for c.peek().tt != EndLoop {
+		if c.match(AbortLoop) {
+			abortsToPatch = append(
+				abortsToPatch,
+				c.chunk.EmitJump(vm.OpJump, c.peek().line),
+			)
+		} else {
+			if err := c.statement(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if !c.match(EndLoop) {
+		return expectedEndLoopErr(c.peek())
+	}
+
+	loopBack := c.chunk.EmitJump(vm.OpJump, c.peek().line)
+	if err := c.chunk.PatchJump(loopBack, loopStart); err != nil {
 		return blockIsTooLargeErr(c.peek())
 	}
 
-	for c.peek().tt != End
+	c.chunk.Append(vm.OpPop.Byte(), c.peek().line)
+	if err := c.chunk.PatchJump(exitJump); err != nil {
+		return blockIsTooLargeErr(c.peek())
+	}
 
+	for _, jump := range abortsToPatch {
+		if err := c.chunk.PatchJump(jump); err != nil {
+			return blockIsTooLargeErr(c.peek())
+		}
+	}
+
+	return nil
 }
 
 func (c *Compiler) statement() error {
 	if c.match(If) {
 		return c.ifStatement()
 	} else if c.match(Loop) {
-		// return c.loopStatement()
+		return c.loopStatement()
 	} else if c.peek().tt == Identifier {
 		return c.varAssignment()
 	}
@@ -236,11 +322,7 @@ func (c *Compiler) synchronize() {
 			break
 		}
 
-		if t.tt != End {
-			continue
-		}
-
-		if c.match(Procedure) || c.match(Loop) || c.match(If) {
+		if c.match(EndProcedure) || c.match(AbortLoop) || c.match(EndIf) {
 			break
 		}
 	}

@@ -15,6 +15,10 @@ type Chunk struct {
 	localCount   int
 }
 
+func (c Chunk) InstructionsCount() int {
+	return len(c.instructions)
+}
+
 func (c Chunk) AddLocal() byte {
 	c.localCount++
 	c.locals[byte(c.localCount)] = 0x0
@@ -34,14 +38,20 @@ func (c Chunk) EmitJump(code OpCode, line int) int {
 	return c.Append(code.Byte(), line, 0xff, 0xff)
 }
 
-func (c Chunk) PatchJump(offset int) error {
+func (c Chunk) PatchJump(offset int, to ...int) error {
 	jump := len(c.instructions) - 2 - offset
 	if jump > 256 {
 		return errors.New("block is too large")
 	}
 
+	if len(to) > 0 {
+		jump = to[0]
+	}
+
 	c.instructions[offset] = byte(jump >> 8 & 0xff)
 	c.instructions[offset+1] = byte(jump & 0xff)
+
+	return nil
 }
 
 func (c Chunk) Append(b byte, line int, more ...byte) int {

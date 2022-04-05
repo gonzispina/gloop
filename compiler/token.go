@@ -24,19 +24,19 @@ const (
 	RightSquareBracket
 	Comma
 
-	Define
-	Procedure
+	DefineProcedure
+	EndProcedure
+	QuitProcedure
 	If
 	Then
 	Else
+	EndIf
 	And
 	Or
 	Loop
-	Abort
+	AbortLoop
+	EndLoop
 	Times
-	Begin
-	End
-	Quit
 
 	Output
 
@@ -68,16 +68,20 @@ func token(tt tokenType, lexeme string, line, column int) Token {
 
 func reserved(s string, line, column int) (Token, error) {
 	switch strings.ToLower(s) {
-	case "define":
-		return token(Define, strings.ToUpper(s), line, column), nil
-	case "procedure":
-		return token(Procedure, strings.ToUpper(s), line, column), nil
+	case "defineprocedure":
+		return token(DefineProcedure, strings.ToUpper(s), line, column), nil
+	case "quitprocedure":
+		return token(QuitProcedure, strings.ToUpper(s), line, column), nil
+	case "endprocedure":
+		return token(EndProcedure, strings.ToUpper(s), line, column), nil
 	case "if":
 		return token(If, strings.ToUpper(s), line, column), nil
 	case "then":
 		return token(Then, strings.ToUpper(s), line, column), nil
 	case "else":
 		return token(Else, strings.ToUpper(s), line, column), nil
+	case "endif":
+		return token(EndIf, strings.ToUpper(s), line, column), nil
 	case "not":
 		return token(Not, strings.ToUpper(s), line, column), nil
 	case "and":
@@ -86,16 +90,12 @@ func reserved(s string, line, column int) (Token, error) {
 		return token(Or, strings.ToUpper(s), line, column), nil
 	case "loop":
 		return token(Loop, strings.ToUpper(s), line, column), nil
-	case "abort":
-		return token(Abort, strings.ToUpper(s), line, column), nil
+	case "abortloop":
+		return token(AbortLoop, strings.ToUpper(s), line, column), nil
+	case "endloop":
+		return token(EndLoop, strings.ToUpper(s), line, column), nil
 	case "times":
 		return token(Times, strings.ToUpper(s), line, column), nil
-	case "begin":
-		return token(Begin, strings.ToUpper(s), line, column), nil
-	case "end":
-		return token(End, strings.ToUpper(s), line, column), nil
-	case "quit":
-		return token(Quit, strings.ToUpper(s), line, column), nil
 	case "output":
 		return token(Output, strings.ToUpper(s), line, column), nil
 	case "yes":
