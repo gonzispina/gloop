@@ -20,6 +20,8 @@ const (
 	ExpectedEndLoopAfterLoopErrCode   = "Expected end loop"
 	UndefinedVariableErrCode          = "Undefined variable"
 	BlockIsTooLargeErrCode            = "Block is too large"
+	BooleanExpressionNeededCodeErr    = "Boolean expression needed"
+	NumberExpressionNeededCodeErr     = "Number expression needed"
 )
 
 func compileErr(t Token, message string, code ErrCode) error {
@@ -89,5 +91,21 @@ func undefinedVariableErr(t Token, name string) error {
 			name,
 		),
 		UndefinedVariableErrCode,
+	)
+}
+
+func booleanExpressionNeededErr(t Token) error {
+	return compileErr(
+		t,
+		"needed boolean expression",
+		BooleanExpressionNeededCodeErr,
+	)
+}
+
+func numberExpressionNeededErr(t Token) error {
+	return compileErr(
+		t,
+		"needed number expression",
+		NumberExpressionNeededCodeErr,
 	)
 }

@@ -38,8 +38,6 @@ const (
 	EndLoop
 	Times
 
-	Output
-
 	Identifier
 	Constant
 
@@ -97,7 +95,7 @@ func reserved(s string, line, column int) (Token, error) {
 	case "times":
 		return token(Times, strings.ToUpper(s), line, column), nil
 	case "output":
-		return token(Output, strings.ToUpper(s), line, column), nil
+		return identifier(s, s, line, column), nil
 	case "yes":
 		return constant(strings.ToUpper(s), true, line, column), nil
 	case "no":

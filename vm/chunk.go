@@ -3,7 +3,11 @@ package vm
 import "errors"
 
 func NewChunk() Chunk {
-	return Chunk{ip: 0, instructions: []byte{}}
+	return Chunk{
+		ip:           0,
+		instructions: []byte{},
+		locals:       map[byte]byte{},
+	}
 }
 
 // Chunk for instructions

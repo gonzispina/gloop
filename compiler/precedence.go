@@ -16,7 +16,7 @@ const (
 	precedencePrimary
 )
 
-type parseFunc func() error
+type parseFunc func() (interface{}, error)
 
 type parseRule struct {
 	prefix     parseFunc
@@ -56,10 +56,8 @@ func getRule(c *Compiler, tt tokenType) parseRule {
 		EndProcedure:  {nil, nil, precedenceNone},
 		QuitProcedure: {nil, nil, precedenceNone},
 
-		Output: {nil, nil, precedenceNone},
-
-		// Identifier: {c.variable, nil, precedenceNone},
-		// Constant:   {c.constant, nil, precedenceNone},
+		Identifier: {c.varEvaluation, nil, precedenceNone},
+		Constant:   {c.constant, nil, precedenceNone},
 
 		Eof: {nil, nil, precedenceNone},
 	}

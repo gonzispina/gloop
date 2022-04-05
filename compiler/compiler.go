@@ -4,11 +4,12 @@ import (
 	"github.com/gonzispina/gloop/vm"
 )
 
-func NewCompiler(tokens []Token) *Compiler {
+func New(tokens []Token) *Compiler {
 	return &Compiler{
 		chunk:   vm.NewChunk(),
 		tokens:  tokens,
 		counter: 0,
+		vars:    map[string]*variable{},
 	}
 }
 
@@ -47,46 +48,64 @@ func (c *Compiler) match(tt tokenType) bool {
 	return false
 }
 
-func (c *Compiler) parsePrecedence(previous Token, precedence Precedence) error {
-	current := c.advance()
+func (c *Compiler) parsePrecedence(previous Token, precedence Precedence) (interface{}, error) {
 	prefixRule := getRule(c, previous.tt).prefix
 	if prefixRule == nil {
-		return expectedExpressionErr(previous)
+		return nil, expectedExpressionErr(previous)
 	}
 
-	err := prefixRule()
+	v, err := prefixRule()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	current := c.advance()
 	for rule := getRule(c, current.tt); rule.precedence > precedence; {
 		current = c.advance()
-		err := rule.infix()
+		_, err := rule.infix()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return v, nil
 }
 
-func (c *Compiler) unary() error {
+func (c *Compiler) constant() (interface{}, error) {
 	t := c.peek()
-	err := c.parsePrecedence(t, precedenceUnary)
+	var res varType
+	if v, ok := t.value.(int64); ok {
+		c.chunk.Append(vm.OpPush.Byte(), t.line, byte(int64(v)))
+		res = numberType
+	} else if b, ok := t.value.(bool); ok {
+		if b {
+			c.chunk.Append(vm.OpPush.Byte(), t.line, byte(1))
+		} else {
+			c.chunk.Append(vm.OpPush.Byte(), t.line, byte(0))
+		}
+		res = booleanType
+	}
+
+	return res, nil
+}
+
+func (c *Compiler) unary() (interface{}, error) {
+	t := c.peek()
+	v, err := c.parsePrecedence(t, precedenceUnary)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	c.chunk.Append(vm.OpNot.Byte(), t.line)
-	return nil
+	return v, nil
 }
 
-func (c *Compiler) binary() error {
+func (c *Compiler) binary() (interface{}, error) {
 	t := c.peek()
 	rule := getRule(c, t.tt)
-	err := c.parsePrecedence(t, rule.precedence+1)
+	v, err := c.parsePrecedence(t, rule.precedence+1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	switch t.tt {
@@ -115,25 +134,26 @@ func (c *Compiler) binary() error {
 		break
 	}
 
-	return nil
+	return v, nil
 }
 
-func (c *Compiler) expression() error {
+func (c *Compiler) expression() (interface{}, error) {
 	return c.parsePrecedence(c.peek(), precedenceAssigment)
 }
 
-func (c *Compiler) grouping() error {
+func (c *Compiler) grouping() (interface{}, error) {
 	t := c.advance()
-	if err := c.expression(); err != nil {
-		return err
+	v, err := c.expression()
+	if err != nil {
+		return nil, err
 	}
 
 	t = c.advance()
 	if t.tt != RightParen {
-		return expectedRightParenthesisErr(t)
+		return nil, expectedRightParenthesisErr(t)
 	}
 
-	return nil
+	return v, nil
 }
 
 func (c *Compiler) procedureCall() (interface{}, error) {
@@ -151,7 +171,19 @@ func (c *Compiler) declareVariable(name string) *variable {
 	return c.vars[name]
 }
 
-func (c *Compiler) varAssignment() error {
+func (c *Compiler) varEvaluation() (interface{}, error) {
+	t := c.advance()
+
+	name := t.value.(string)
+	_, ok := c.vars[name]
+	if !ok {
+		return nil, undefinedVariableErr(t, name)
+	}
+
+	return nil, nil
+}
+
+func (c *Compiler) varAssignment() (interface{}, error) {
 	t := c.advance()
 
 	name := t.value.(string)
@@ -161,75 +193,85 @@ func (c *Compiler) varAssignment() error {
 	}
 
 	if !c.match(LeftArrow) {
-		return expectedAssignmentOperatorErr(c.peek())
+		return nil, expectedAssignmentOperatorErr(c.peek())
 	}
 
-	err := c.expression()
+	e, err := c.expression()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	/*
-		switch reflect.ValueOf(value).Kind() {
-		case reflect.Bool:
-			if v.initialized && v.vt != boolean {
-				return assignErr(c.peek(), v.vt, boolean)
-			}
-			v.initialized = true
-			v.vt = boolean
-		case reflect.Int64:
-			if v.initialized && v.vt != number {
-				return assignErr(c.peek(), v.vt, number)
-			}
-			v.initialized = true
-			v.vt = number
+	switch e.(varType) {
+	case booleanType:
+		if v.initialized && v.vt != booleanType {
+			return nil, invalidTypeErr(c.peek(), v.vt, booleanType)
 		}
-	*/
+		v.initialized = true
+		v.vt = booleanType
+	case numberType:
+		if v.initialized && v.vt != numberType {
+			return nil, invalidTypeErr(c.peek(), v.vt, numberType)
+		}
+		v.initialized = true
+		v.vt = numberType
+	}
 
 	c.chunk.Append(vm.OpSet.Byte(), t.line, v.slot)
-	return nil
+	return nil, nil
 }
 
-func (c *Compiler) ifStatement() error {
-	if err := c.expression(); err != nil {
-		return err
+func (c *Compiler) ifStatement() (interface{}, error) {
+	t := c.peek()
+
+	v, err := c.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	if expressionType := v.(varType); expressionType != booleanType {
+		return nil, booleanExpressionNeededErr(t)
 	}
 
 	if !c.match(Then) {
-		return expectedThenErr(c.peek())
+		return nil, expectedThenErr(c.peek())
 	}
 
 	thenJumpOffset := c.chunk.EmitJump(vm.OpJumpIfFalse, c.peek().line)
 	for c.peek().tt != EndIf && c.peek().tt != Else {
-		if err := c.statement(); err != nil {
-			return err
+		if _, err := c.statement(); err != nil {
+			return nil, err
 		}
 	}
 
 	for c.match(Else) {
-		if c.match(If) {
+		if c.peek().tt == If {
+			t = c.advance()
 			previousOffset := thenJumpOffset
-			if err := c.expression(); err != nil {
-				return err
+			if v, err = c.expression(); err != nil {
+				return nil, err
+			}
+
+			if expressionType := v.(varType); expressionType != booleanType {
+				return nil, booleanExpressionNeededErr(t)
 			}
 
 			if !c.match(Then) {
-				return expectedThenErr(c.peek())
+				return nil, expectedThenErr(c.peek())
 			}
 
 			thenJumpOffset = c.chunk.EmitJump(vm.OpJumpIfFalse, c.peek().line)
-			if err := c.statement(); err != nil {
-				return err
+			if _, err := c.statement(); err != nil {
+				return nil, err
 			}
 
 			c.chunk.Append(vm.OpPop.Byte(), c.peek().line)
 			if err := c.chunk.PatchJump(previousOffset); err != nil {
-				return blockIsTooLargeErr(c.peek())
+				return nil, blockIsTooLargeErr(c.peek())
 			}
 
 			for c.peek().tt != EndIf && c.peek().tt != Else {
-				if err := c.statement(); err != nil {
-					return err
+				if _, err := c.statement(); err != nil {
+					return nil, err
 				}
 			}
 
@@ -238,32 +280,40 @@ func (c *Compiler) ifStatement() error {
 
 		c.chunk.Append(vm.OpPop.Byte(), c.peek().line)
 		if err := c.chunk.PatchJump(thenJumpOffset); err != nil {
-			return blockIsTooLargeErr(c.peek())
+			return nil, blockIsTooLargeErr(c.peek())
 		}
 
 		for c.peek().tt != EndIf {
-			if err := c.statement(); err != nil {
-				return err
+			if _, err := c.statement(); err != nil {
+				return nil, err
 			}
 		}
 	}
 
 	if !c.match(EndIf) {
-		return expectedEndIfErr(c.peek())
+		return nil, expectedEndIfErr(c.peek())
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (c *Compiler) loopStatement() error {
+func (c *Compiler) loopStatement() (interface{}, error) {
+	t := c.peek()
+
 	loopStart := c.chunk.InstructionsCount()
-	if err := c.expression(); err != nil {
-		return err
+
+	v, err := c.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	if expressionType := v.(varType); expressionType != numberType {
+		return nil, numberExpressionNeededErr(t)
 	}
 
 	exitJump := c.chunk.EmitJump(vm.OpJumpIfFalse, c.peek().line)
 	if !c.match(Times) {
-		return expectedTimesErr(c.peek())
+		return nil, expectedTimesErr(c.peek())
 	}
 
 	var abortsToPatch []int
@@ -274,36 +324,36 @@ func (c *Compiler) loopStatement() error {
 				c.chunk.EmitJump(vm.OpJump, c.peek().line),
 			)
 		} else {
-			if err := c.statement(); err != nil {
-				return err
+			if _, err := c.statement(); err != nil {
+				return nil, err
 			}
 		}
 	}
 
 	if !c.match(EndLoop) {
-		return expectedEndLoopErr(c.peek())
+		return nil, expectedEndLoopErr(c.peek())
 	}
 
 	loopBack := c.chunk.EmitJump(vm.OpJump, c.peek().line)
 	if err := c.chunk.PatchJump(loopBack, loopStart); err != nil {
-		return blockIsTooLargeErr(c.peek())
+		return nil, blockIsTooLargeErr(c.peek())
 	}
 
 	c.chunk.Append(vm.OpPop.Byte(), c.peek().line)
 	if err := c.chunk.PatchJump(exitJump); err != nil {
-		return blockIsTooLargeErr(c.peek())
+		return nil, blockIsTooLargeErr(c.peek())
 	}
 
 	for _, jump := range abortsToPatch {
 		if err := c.chunk.PatchJump(jump); err != nil {
-			return blockIsTooLargeErr(c.peek())
+			return nil, blockIsTooLargeErr(c.peek())
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (c *Compiler) statement() error {
+func (c *Compiler) statement() (interface{}, error) {
 	if c.match(If) {
 		return c.ifStatement()
 	} else if c.match(Loop) {
@@ -312,7 +362,7 @@ func (c *Compiler) statement() error {
 		return c.varAssignment()
 	}
 
-	return unexpectedTokenErr(c.peek())
+	return nil, unexpectedTokenErr(c.peek())
 }
 
 func (c *Compiler) synchronize() {
@@ -328,11 +378,11 @@ func (c *Compiler) synchronize() {
 	}
 }
 
-func (c *Compiler) Parse() (vm.Chunk, []error) {
+func (c *Compiler) Compile() (vm.Chunk, []error) {
 	var errs []error
 	c.counter = 0
-	for c.counter <= len(c.tokens) {
-		err := c.statement()
+	for c.counter < len(c.tokens)-1 {
+		_, err := c.statement()
 		if err != nil {
 			errs = append(errs, err)
 			c.synchronize()

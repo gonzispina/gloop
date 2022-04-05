@@ -3,19 +3,27 @@ package compiler
 type varType uint8
 
 const (
-	number varType = iota
-	boolean
+	numberType varType = iota
+	booleanType
 )
 
 func (vt varType) String() string {
 	switch vt {
-	case number:
+	case numberType:
 		return "number"
-	case boolean:
+	case booleanType:
 		return "boolean"
 	default:
 		// Unreachable
 		return ""
+	}
+}
+
+func constantVarType(v interface{}) varType {
+	if _, ok := v.(int); ok {
+		return numberType
+	} else {
+		return booleanType
 	}
 }
 

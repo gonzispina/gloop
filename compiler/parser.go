@@ -165,7 +165,7 @@ func Lexer(text string) ([]Token, error) {
 
 				t, err := reserved(lexeme, line, i)
 				if err != nil {
-					if current() == "?" {
+					if !isAtEnd() && current() == "?" {
 						lexeme += next()
 					}
 					t = identifier(lexeme, lexeme, line, i)
