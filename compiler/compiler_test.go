@@ -41,7 +41,7 @@ func TestCompiler_Compile_Assignments(t *testing.T) {
 		_, errs := compile(t, text)
 		assertErrContains(t, errs, compiler.UndefinedVariableErrCode)
 	})
-
+	
 	t.Run("Initialization of a variable with itself returns an uninitialized variable error", func(t *testing.T) {
 		text := `
 			N <- N + 1 
